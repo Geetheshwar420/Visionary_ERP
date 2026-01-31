@@ -1,0 +1,62 @@
+Name: Visionary ERP
+Tagline: Manage your business with Superhuman Intelligence.
+Description: A next-generation ERP system designed for regional grocery and retail chains. It combines traditional inventory tracking with Generative AI (Google Gemini) to offer predictive analytics, real-time insights, and automated business strategy.
+2. Core Features
+2.1 Authentication & Onboarding
+Landing Page: High-conversion landing page with feature bento-grids, dark/light mode toggle, and clear calls to action.
+Sign Up / Login:
+Email/Password authentication with simulated backend delay.
+Google Sign-In: One-click OAuth login (simulated) for streamlined access.
+Email Verification flow (simulation).
+Forgot/Reset Password flows (simulation).
+Security: Multi-factor authentication visual indicators in user profile.
+2.2 Dashboard
+AI Projection: Prominent visualization of predicted monthly profits with confidence scores.
+Bento-Grid Layout: Modern, responsive card layout for key metrics (Inventory Value, Active Products, Low Stock).
+Velocity Widget: Visual cards tracking sales velocity, trends (up/down), and stockout predictions.
+Spoilage Risk Analysis: Auto-calculated risk scores based on expiry dates and sales velocity, with AI-driven recommendations (e.g., "Discount 40%").
+AI Feed: A scrollable feed of generated insights (Critical, Important, Info) powered by Google Gemini.
+2.3 Inventory Management
+Product List: Sortable and searchable table view of all products.
+CRUD Operations: Add new products, edit existing details, update stock levels.
+Smart Indicators: Visual badges for "Fast Mover", "Slow Mover", "Steady", and "Expiring Soon".
+Product Details: dedicated page for individual products showing sales history charts, unit economics (Cost vs. Profit), and specific AI insights for that item.
+2.4 Forecasting & Financials
+Financial Forecast: Interactive charts comparing historical data vs. AI-predicted future performance (30-day projection).
+Scenario Planning: "Best Case" vs. "Worst Case" financial visualization.
+Key Drivers: List of factors influencing the forecast (e.g., "Utility costs rising").
+Financial Performance:
+Income vs. Expenses bar charts.
+Expense breakdown pie charts.
+Recent transaction history with status indicators.
+2.5 AI Assistant (Chat)
+Global Chatbot: Floating action button accessible from any page.
+Context Aware: The AI is aware of the current inventory list and context.
+Functionality: Users can ask questions like "Which items are expiring?" or "How can I improve margins?" and receive natural language responses.
+2.6 User Experience (UX)
+Navigation:
+Sidebar navigation (collapsible).
+Updated Layout: Collapse toggle moved to header aligned with logo.
+Internationalization (i18n):
+Support for 10+ languages (English, Hindi, Tamil, Telugu, Bengali, Marathi, Kannada, Malayalam, Gujarati, Punjabi).
+Language switcher available in Sidebar and Landing page.
+Theme: Fully supported Light and Dark modes with persistent preference storage.
+Responsiveness: Mobile-first design with specific mobile header and drawer navigation.
+3. Technical Stack
+Frontend Framework: React 19 (Hooks, Context API).
+Routing: React Router v7.
+Styling: Tailwind CSS (with custom animations and utility classes).
+Icons: Lucide React.
+Charts: Recharts.
+AI Integration: GROQ
+Build Tool: Vite (assumed based on standard React setups).
+PWA: Service Worker registration for offline capabilities.
+4. User Flows
+Login: User lands -> Selects "Sign in" -> Enters credentials OR clicks "Continue with Google" -> Dashboard.
+Stock Check: Dashboard -> Notices "Spoilage Risk" -> Clicks "View Report" or navigates to Inventory -> Selects Product -> Views Details -> Takes Action (Edit Price).
+Strategy: User opens AI Chat -> Asks for weekly strategy -> AI analyzes mock product data -> Returns actionable text.
+5. Future Roadmap (Post-MVP)
+Real backend integration (Supabase/Firebase).
+Actual Stripe payment integration for billing.
+Barcode scanning via device camera.
+Multi-store location support.
