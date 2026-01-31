@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Mail, ArrowRight, ArrowLeft, KeyRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
+import { resetPassword } from '@/config/firebase';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
