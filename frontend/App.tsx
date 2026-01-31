@@ -80,9 +80,9 @@ const App: React.FC = () => {
             <div className="animate-in fade-in duration-500">
               <Routes>
                 <Route path="/" element={<Landing />} />
-                <Route path="/login" element={<Login onLogin={handleLogin} />} />
-                <Route path="/signup" element={<Signup onSignup={handleLogin} />} />
-                <Route path="/verify-email" element={<VerifyEmail />} />
+                <Route path="/login" element={<Login onLogin={handleLogin} toggleTheme={toggleTheme} isDark={theme === 'dark'} />} />
+                <Route path="/signup" element={<Signup toggleTheme={toggleTheme} isDark={theme === 'dark'} />} />
+                <Route path="/verify-email" element={<VerifyEmail onVerified={handleLogin} />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
