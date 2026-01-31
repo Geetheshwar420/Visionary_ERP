@@ -95,7 +95,19 @@ const UserProfile: React.FC<UserProfileProps> = ({ user }) => {
                 </div>
                 <button className="text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-400">Manage</button>
               </div>
-              <button className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+              <button
+                onClick={async () => {
+                  try {
+                    if (user?.email) {
+                      await import('../config/firebase').then(m => m.resetPassword(user.email));
+                      alert('Password reset link sent to your email!');
+                    }
+                  } catch (err) {
+                    alert('Failed to send reset link.');
+                  }
+                }}
+                className="w-full py-2 text-sm text-blue-600 dark:text-blue-400 font-medium hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
+              >
                 {t('changePassword')}
               </button>
             </div>

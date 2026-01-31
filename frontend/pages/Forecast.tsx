@@ -5,9 +5,29 @@ import { TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useForecast } from '../hooks/useQueries';
 
+import { DashboardSkeleton } from '../components/Skeleton';
+
 const Forecast: React.FC = () => {
   const { t } = useLanguage();
   const { data, isLoading } = useForecast(30);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="space-y-2">
+          <div className="h-8 w-64 bg-slate-200 dark:bg-slate-700 animate-pulse rounded-lg" />
+          <div className="h-4 w-96 bg-slate-200 dark:bg-slate-700 animate-pulse rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="md:col-span-2 h-[380px] bg-slate-200 dark:bg-slate-700 animate-pulse rounded-xl" />
+          <div className="space-y-6">
+            <div className="h-[180px] bg-slate-200 dark:bg-slate-700 animate-pulse rounded-xl" />
+            <div className="h-[180px] bg-slate-200 dark:bg-slate-700 animate-pulse rounded-xl" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const forecastData = data?.forecast || [];
   const forecastStats = {
@@ -17,13 +37,6 @@ const Forecast: React.FC = () => {
     confidence: data?.scenarios?.baseCase?.confidence || 0
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
-      </div>
-    );
-  }
   // Split data for styling
   const todayIndex = 15;
   const currentPrediction = forecastData[todayIndex + 1]?.predicted || 0;

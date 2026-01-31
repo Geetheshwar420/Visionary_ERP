@@ -5,6 +5,8 @@ import { Transaction } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useFinancialSummary, useIncomeExpense, useExpenseBreakdown, useTransactions } from '../hooks/useQueries';
 
+import { DashboardSkeleton, TableSkeleton } from '../components/Skeleton';
+
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#EC4899'];
 
 const Financials: React.FC = () => {
@@ -16,6 +18,15 @@ const Financials: React.FC = () => {
   const { data: transactionsData, isLoading: txLoading } = useTransactions({ limit: 10 });
 
   const isLoading = summaryLoading || ieLoading || breakdownLoading || txLoading;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-8">
+        <DashboardSkeleton />
+        <TableSkeleton rows={5} />
+      </div>
+    );
+  }
 
   const summary = {
     totalRevenue: summaryData?.totalRevenue || 0,
@@ -32,14 +43,6 @@ const Financials: React.FC = () => {
 
   const totalIncome = useMemo(() => transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0), [transactions]);
   const totalExpense = useMemo(() => transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0), [transactions]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-96">
-        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">

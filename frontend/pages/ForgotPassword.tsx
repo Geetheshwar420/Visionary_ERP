@@ -7,14 +7,22 @@ export default function ForgotPassword() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    if (!email) return;
 
-    // Mock API call with Skeleton loading duration
-    setTimeout(() => {
-      navigate('/reset-password', { state: { email } });
-    }, 2000);
+    setIsLoading(true);
+    try {
+      await resetPassword(email);
+      // Success - In standard Firebase, the email is sent and user is directed to check inbox
+      alert('Password reset link sent to your email!');
+      navigate('/login');
+    } catch (err: any) {
+      console.error('Reset error:', err);
+      // Handle error
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -28,10 +36,10 @@ export default function ForgotPassword() {
 
       <div className="max-w-md w-full relative z-10 animate-in fade-in zoom-in duration-500">
         <div className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/20 dark:border-slate-700/50 overflow-hidden ring-1 ring-slate-900/5 dark:ring-white/10">
-          
+
           <div className="p-8 pb-0 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 shadow-lg shadow-amber-500/30 mb-6">
-               <KeyRound className="text-white w-8 h-8" />
+              <KeyRound className="text-white w-8 h-8" />
             </div>
             <h1 className="text-2xl font-heading font-bold text-slate-900 dark:text-white mb-2">Forgot Password?</h1>
             <p className="text-slate-500 dark:text-slate-400 text-sm">
@@ -49,7 +57,7 @@ export default function ForgotPassword() {
                 </div>
                 <div className="h-12 w-full bg-slate-300 dark:bg-slate-600 rounded-xl" />
                 <div className="flex justify-center">
-                   <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
+                  <div className="h-4 w-32 bg-slate-200 dark:bg-slate-700 rounded" />
                 </div>
               </div>
             ) : (
@@ -78,11 +86,11 @@ export default function ForgotPassword() {
                 </button>
               </form>
             )}
-            
+
             {!isLoading && (
               <div className="mt-6 pt-6 border-t border-slate-200/60 dark:border-slate-700/60 text-center">
                 <Link to="/login" className="text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 flex items-center justify-center gap-1 transition-colors">
-                    <ArrowLeft size={12} /> Back to Sign In
+                  <ArrowLeft size={12} /> Back to Sign In
                 </Link>
               </div>
             )}

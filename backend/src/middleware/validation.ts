@@ -26,9 +26,9 @@ export const handleValidationErrors = (
 // Auth validations
 export const validateRegister = [
   body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
-  body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters'),
+  body('uid')
+    .notEmpty()
+    .withMessage('Firebase UID is required'),
   body('name')
     .trim()
     .isLength({ min: 2 })
@@ -36,9 +36,8 @@ export const validateRegister = [
   handleValidationErrors
 ];
 
-export const validateLogin = [
-  body('email').isEmail().normalizeEmail().withMessage('Valid email required'),
-  body('password').notEmpty().withMessage('Password required'),
+export const validateFirebaseLogin = [
+  body('idToken').notEmpty().withMessage('Firebase ID token is required'),
   handleValidationErrors
 ];
 

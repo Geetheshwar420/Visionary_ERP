@@ -3,6 +3,12 @@ import { Product, Insight, Transaction, ForecastData, SpoilageRisk } from '../ty
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
+export interface AuthResponse {
+  user: any;
+  accessToken: string;
+  refreshToken: string;
+}
+
 // Token management
 let accessToken: string | null = null;
 
@@ -28,7 +34,7 @@ const apiRequest = async <T>(
   options: RequestInit = {}
 ): Promise<{ success: boolean; data?: T; error?: string }> => {
   const token = getAccessToken();
-  
+
   const headers: HeadersInit = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -57,45 +63,37 @@ const apiRequest = async <T>(
 // ============ AUTH API ============
 
 export const authApi = {
-  register: async (email: string, password: string, name: string) => {
-    const result = await apiRequest<{ user: any; accessToken: string; refreshToken: string }>(
-      '/auth/register',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password, name })
+  register: (email: string, name: string, uid: string) =>
+    apiRequest<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, name, uid })
+    }).then(result => {
+      if (result.success && result.data?.accessToken) {
+        setAccessToken(result.data.accessToken);
+        localStorage.setItem('refreshToken', result.data.refreshToken);
+        localStorage.setItem('user', JSON.stringify(result.data.user));
       }
-    );
-    if (result.success && result.data?.accessToken) {
-      setAccessToken(result.data.accessToken);
-      localStorage.setItem('refreshToken', result.data.refreshToken);
-    }
-    return result;
-  },
+      return result;
+    }),
 
-  login: async (email: string, password: string) => {
-    const result = await apiRequest<{ user: any; accessToken: string; refreshToken: string }>(
-      '/auth/login',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
+  loginWithFirebase: (idToken: string) =>
+    apiRequest<AuthResponse>('/auth/firebase-login', {
+      method: 'POST',
+      body: JSON.stringify({ idToken })
+    }).then(result => {
+      if (result.success && result.data?.accessToken) {
+        setAccessToken(result.data.accessToken);
+        localStorage.setItem('refreshToken', result.data.refreshToken);
+        localStorage.setItem('user', JSON.stringify(result.data.user));
       }
-    );
-    if (result.success && result.data?.accessToken) {
-      setAccessToken(result.data.accessToken);
-      localStorage.setItem('refreshToken', result.data.refreshToken);
-      localStorage.setItem('user', JSON.stringify(result.data.user));
-    }
-    return result;
-  },
+      return result;
+    }),
 
   loginWithGoogle: async (email: string, name: string, photoURL?: string) => {
-    const result = await apiRequest<{ user: any; accessToken: string; refreshToken: string }>(
-      '/auth/login-google',
-      {
-        method: 'POST',
-        body: JSON.stringify({ email, name, photoURL })
-      }
-    );
+    const result = await apiRequest<AuthResponse>('/auth/login-google', {
+      method: 'POST',
+      body: JSON.stringify({ email, name, photoURL })
+    });
     if (result.success && result.data?.accessToken) {
       setAccessToken(result.data.accessToken);
       localStorage.setItem('refreshToken', result.data.refreshToken);
@@ -119,12 +117,6 @@ export const authApi = {
       body: JSON.stringify(data)
     }),
 
-  changePassword: (currentPassword: string, newPassword: string) =>
-    apiRequest<any>('/auth/change-password', {
-      method: 'PUT',
-      body: JSON.stringify({ currentPassword, newPassword })
-    }),
-
   forgotPassword: (email: string) =>
     apiRequest<any>('/auth/forgot-password', {
       method: 'POST',
@@ -135,6 +127,12 @@ export const authApi = {
     apiRequest<any>('/auth/verify-email', {
       method: 'POST',
       body: JSON.stringify({ email, code })
+    }),
+
+  resendCode: (email: string) =>
+    apiRequest<any>('/auth/resend-code', {
+      method: 'POST',
+      body: JSON.stringify({ email })
     }),
 
   refreshToken: async () => {

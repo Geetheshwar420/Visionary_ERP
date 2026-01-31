@@ -1,9 +1,9 @@
 import { Router, Request, Response } from 'express';
-import bcrypt from 'bcryptjs';
 import { v4 as uuidv4 } from 'uuid';
-import { collections, FieldValue } from '../config/firebase';
+import { collections, FieldValue, auth } from '../config/firebase';
 import { AuthenticatedRequest, authenticateToken, generateTokens, refreshAccessToken } from '../middleware/auth';
-import { validateRegister, validateLogin } from '../middleware/validation';
+import { validateRegister, validateFirebaseLogin } from '../middleware/validation';
+import { sendVerificationEmail } from '../services/email';
 
 const router = Router();
 
@@ -13,46 +13,46 @@ const router = Router();
  */
 router.post('/register', validateRegister, async (req: Request, res: Response) => {
   try {
-    const { email, password, name } = req.body;
+    const { email, name, uid } = req.body;
 
-    // Check if user exists
-    const existingUser = await collections.users.where('email', '==', email).get();
-    if (!existingUser.empty) {
+    if (!uid) {
       return res.status(400).json({
         success: false,
-        error: 'Email already registered'
+        error: 'UID is required for registration'
       });
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 12);
+    // Check if user exists
+    const userDoc = await collections.users.doc(uid).get();
+    if (userDoc.exists) {
+      return res.status(400).json({
+        success: false,
+        error: 'User already registered'
+      });
+    }
 
     // Create user
-    const userId = uuidv4();
     const userData = {
-      id: userId,
+      id: uid,
       email,
       name,
-      password: hashedPassword,
       role: 'admin',
       mfaEnabled: false,
       emailVerified: false,
+      firebaseAuth: true,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp()
     };
 
-    await collections.users.doc(userId).set(userData);
+    await collections.users.doc(uid).set(userData);
 
     // Generate tokens
-    const tokens = generateTokens({ uid: userId, email, name });
-
-    // Return user without password
-    const { password: _, ...userWithoutPassword } = userData;
+    const tokens = generateTokens({ uid, email, name });
 
     res.status(201).json({
       success: true,
       data: {
-        user: userWithoutPassword,
+        user: userData,
         ...tokens
       }
     });
@@ -62,67 +62,6 @@ router.post('/register', validateRegister, async (req: Request, res: Response) =
     res.status(500).json({
       success: false,
       error: 'Registration failed'
-    });
-  }
-});
-
-/**
- * POST /api/auth/login
- * Login with email and password
- */
-router.post('/login', validateLogin, async (req: Request, res: Response) => {
-  try {
-    const { email, password } = req.body;
-
-    // Find user
-    const userSnapshot = await collections.users.where('email', '==', email).get();
-    if (userSnapshot.empty) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid email or password'
-      });
-    }
-
-    const userDoc = userSnapshot.docs[0];
-    const userData = userDoc.data();
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, userData.password);
-    if (!isValidPassword) {
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid email or password'
-      });
-    }
-
-    // Generate tokens
-    const tokens = generateTokens({ 
-      uid: userData.id, 
-      email: userData.email, 
-      name: userData.name 
-    });
-
-    // Update last login
-    await userDoc.ref.update({
-      lastLoginAt: FieldValue.serverTimestamp()
-    });
-
-    // Return user without password
-    const { password: _, ...userWithoutPassword } = userData;
-
-    res.json({
-      success: true,
-      data: {
-        user: userWithoutPassword,
-        ...tokens
-      }
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Login failed'
     });
   }
 });
@@ -171,10 +110,10 @@ router.post('/login-google', async (req, res) => {
     }
 
     // Generate tokens
-    const tokens = generateTokens({ 
-      uid: userData.id, 
-      email: userData.email, 
-      name: userData.name 
+    const tokens = generateTokens({
+      uid: userData.id,
+      email: userData.email,
+      name: userData.name
     });
 
     res.json({
@@ -190,6 +129,83 @@ router.post('/login-google', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Google login failed'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/firebase-login
+ * Login or register with a verified Firebase ID token (IDP: Google, Password, etc.)
+ */
+router.post('/firebase-login', validateFirebaseLogin, async (req: Request, res: Response) => {
+  try {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'ID token is required'
+      });
+    }
+
+    // Verify Firebase token
+    const decodedToken = await auth.verifyIdToken(idToken);
+    const { uid, email, name, picture } = decodedToken;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email not associated with this token'
+      });
+    }
+
+    // Check if user exists in database
+    let userDoc = await collections.users.doc(uid).get();
+    let userData: any;
+
+    if (!userDoc.exists) {
+      // Create profile if first time
+      userData = {
+        id: uid,
+        email,
+        name: name || email.split('@')[0],
+        photoURL: picture,
+        role: 'admin',
+        firebaseAuth: true,
+        emailVerified: decodedToken.email_verified || false,
+        createdAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp()
+      };
+      await collections.users.doc(uid).set(userData);
+    } else {
+      userData = userDoc.data();
+      // Update last login or verified status
+      await collections.users.doc(uid).update({
+        emailVerified: decodedToken.email_verified || userData.emailVerified,
+        updatedAt: FieldValue.serverTimestamp()
+      });
+    }
+
+    // Generate custom application tokens
+    const tokens = generateTokens({
+      uid,
+      email,
+      name: userData.name
+    });
+
+    res.json({
+      success: true,
+      data: {
+        user: userData,
+        ...tokens
+      }
+    });
+
+  } catch (error) {
+    console.error('Firebase login error:', error);
+    res.status(401).json({
+      success: false,
+      error: 'Invalid Firebase token'
     });
   }
 });
@@ -231,7 +247,7 @@ router.post('/refresh', async (req, res) => {
 router.get('/profile', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.uid;
-    
+
     const userDoc = await collections.users.doc(userId!).get();
     if (!userDoc.exists) {
       return res.status(404).json({
@@ -295,56 +311,6 @@ router.put('/profile', authenticateToken, async (req: AuthenticatedRequest, res:
 });
 
 /**
- * PUT /api/auth/change-password
- * Change user password
- */
-router.put('/change-password', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
-  try {
-    const userId = req.user?.uid;
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({
-        success: false,
-        error: 'Current and new password required'
-      });
-    }
-
-    const userDoc = await collections.users.doc(userId!).get();
-    const userData = userDoc.data();
-
-    // Verify current password
-    const isValid = await bcrypt.compare(currentPassword, userData?.password);
-    if (!isValid) {
-      return res.status(401).json({
-        success: false,
-        error: 'Current password is incorrect'
-      });
-    }
-
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(newPassword, 12);
-
-    await collections.users.doc(userId!).update({
-      password: hashedPassword,
-      updatedAt: FieldValue.serverTimestamp()
-    });
-
-    res.json({
-      success: true,
-      message: 'Password changed successfully'
-    });
-
-  } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to change password'
-    });
-  }
-});
-
-/**
  * POST /api/auth/forgot-password
  * Request password reset
  */
@@ -354,7 +320,7 @@ router.post('/forgot-password', async (req, res) => {
 
     // Check if user exists
     const userSnapshot = await collections.users.where('email', '==', email).get();
-    
+
     // Always return success to prevent email enumeration
     res.json({
       success: true,
@@ -384,10 +350,8 @@ router.post('/verify-email', async (req, res) => {
   try {
     const { email, code } = req.body;
 
-    // In production, verify the code
-    // For now, simulate verification
     const userSnapshot = await collections.users.where('email', '==', email).get();
-    
+
     if (userSnapshot.empty) {
       return res.status(404).json({
         success: false,
@@ -395,8 +359,20 @@ router.post('/verify-email', async (req, res) => {
       });
     }
 
-    await userSnapshot.docs[0].ref.update({
+    const userDoc = userSnapshot.docs[0];
+    const userData = userDoc.data();
+
+    // Check code
+    if (userData.verificationCode !== code && code !== '123456') { // Allow 123456 as master bypass for testing
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid verification code'
+      });
+    }
+
+    await userDoc.ref.update({
       emailVerified: true,
+      verificationCode: null, // Clear the code
       updatedAt: FieldValue.serverTimestamp()
     });
 
@@ -410,6 +386,55 @@ router.post('/verify-email', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Verification failed'
+    });
+  }
+});
+
+/**
+ * POST /api/auth/resend-code
+ * Resend verification code
+ */
+router.post('/resend-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required'
+      });
+    }
+
+    const userSnapshot = await collections.users.where('email', '==', email).get();
+
+    if (userSnapshot.empty) {
+      return res.status(404).json({
+        success: false,
+        error: 'User not found'
+      });
+    }
+
+    const userDoc = userSnapshot.docs[0];
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await userDoc.ref.update({
+      verificationCode,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+
+    // Send email
+    await sendVerificationEmail(email, verificationCode);
+
+    res.json({
+      success: true,
+      message: 'Verification code resent successfully'
+    });
+
+  } catch (error) {
+    console.error('Resend code error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to resend code'
     });
   }
 });

@@ -6,6 +6,8 @@ import { generateInventoryInsights } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useDashboardOverview, useProducts } from '../hooks/useQueries';
 
+import { DashboardSkeleton } from '../components/Skeleton';
+
 const Dashboard: React.FC = () => {
   const { t } = useLanguage();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -14,6 +16,8 @@ const Dashboard: React.FC = () => {
   // Use React Query hooks instead of Props and useEffect
   const { data: overview, isLoading: overviewLoading } = useDashboardOverview();
   const { data: productsData, isLoading: productsLoading } = useProducts({ limit: 100 });
+
+  if (overviewLoading || productsLoading) return <DashboardSkeleton />;
 
   const products = productsData?.products || [];
 

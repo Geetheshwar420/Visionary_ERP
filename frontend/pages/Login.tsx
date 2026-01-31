@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { useLanguage } from '../contexts/LanguageContext';
 import LanguageSwitcher from '../components/LanguageSwitcher';
 import { authApi } from '../services/api';
-import { loginWithGoogle } from '../config/firebase';
+import { loginWithGoogle, loginWithEmail } from '../config/firebase';
 
 interface LoginProps {
   onLogin: () => void;
@@ -53,16 +53,29 @@ export default function Login({ onLogin, toggleTheme, isDark }: LoginProps) {
         return;
       }
 
-      const result = await authApi.login(email, password);
+      // 1. Login with Firebase
+      const userCredential = await loginWithEmail(email, password);
+      const user = userCredential.user;
+      const idToken = await user.getIdToken();
+
+      // 2. Login with backend using ID token
+      const result = await authApi.loginWithFirebase(idToken);
 
       if (result.success) {
         onLogin();
       } else {
-        setError(result.error || 'Login failed. Please check your credentials.');
+        setError(result.error || 'Login failed.');
         setIsLoading(false);
       }
-    } catch (err) {
-      setError('An error occurred. Please try again.');
+    } catch (err: any) {
+      console.error('Login error:', err);
+      if (err.code === 'auth/invalid-credential') {
+        setError('Invalid email or password.');
+      } else if (err.code === 'auth/user-not-found') {
+        setError('No account found with this email.');
+      } else {
+        setError(err.message || 'An error occurred. Please try again.');
+      }
       setIsLoading(false);
     }
   };
@@ -72,16 +85,13 @@ export default function Login({ onLogin, toggleTheme, isDark }: LoginProps) {
     setError('');
 
     try {
-      // Use Firebase Google Sign-In
+      // 1. Login with Firebase Google provider
       const result = await loginWithGoogle();
       const user = result.user;
+      const idToken = await user.getIdToken();
 
-      // Register/login with our backend
-      const backendResult = await authApi.loginWithGoogle(
-        user.email || '',
-        user.displayName || '',
-        user.photoURL || undefined
-      );
+      // 2. Login with backend using ID token
+      const backendResult = await authApi.loginWithFirebase(idToken);
 
       if (backendResult.success) {
         onLogin();
@@ -90,13 +100,11 @@ export default function Login({ onLogin, toggleTheme, isDark }: LoginProps) {
         setIsGoogleLoading(false);
       }
     } catch (err: any) {
-      // Handle Firebase errors
+      console.error('Google login error:', err);
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Sign-in popup was closed.');
-      } else if (err.code === 'auth/network-request-failed') {
-        setError('Network error. Please check your connection.');
       } else {
-        setError('Google sign-in failed. Please try again.');
+        setError('Google login failed. Please try again.');
       }
       setIsGoogleLoading(false);
     }

@@ -1,7 +1,7 @@
 // Firebase configuration for frontend
 import { initializeApp } from 'firebase/app';
 import { getAnalytics, isSupported } from 'firebase/analytics';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, sendEmailVerification, signOut, onAuthStateChanged, User } from 'firebase/auth';
 import { getFirestore, collection, doc, onSnapshot, query, where, orderBy, limit, Unsubscribe } from 'firebase/firestore';
 
 // Firebase configuration - Replace with your actual Firebase config
@@ -45,6 +45,11 @@ export const logout = () => {
 
 export const resetPassword = (email: string) => {
   return sendPasswordResetEmail(auth, email);
+};
+
+export const sendVerification = () => {
+  if (auth.currentUser) return sendEmailVerification(auth.currentUser);
+  return Promise.reject("No user logged in to verify");
 };
 
 // Auth state observer

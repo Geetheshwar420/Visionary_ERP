@@ -16,8 +16,22 @@ const ProductDetails: React.FC = () => {
 
   if (productsLoading || insightsLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      <div className="space-y-8 animate-pulse">
+        <div className="flex items-center gap-4">
+          <div className="h-10 w-10 bg-slate-200 dark:bg-slate-700 rounded-full" />
+          <div className="h-10 w-48 bg-slate-200 dark:bg-slate-700 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            <div className="h-[400px] bg-slate-200 dark:bg-slate-700 rounded-3xl" />
+            <div className="h-[300px] bg-slate-200 dark:bg-slate-700 rounded-3xl" />
+          </div>
+          <div className="space-y-6">
+            <div className="h-[200px] bg-slate-200 dark:bg-slate-700 rounded-3xl" />
+            <div className="h-[200px] bg-slate-200 dark:bg-slate-700 rounded-3xl" />
+            <div className="h-[200px] bg-slate-200 dark:bg-slate-700 rounded-3xl" />
+          </div>
+        </div>
       </div>
     );
   }

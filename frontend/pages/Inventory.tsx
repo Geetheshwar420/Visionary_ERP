@@ -5,6 +5,8 @@ import { Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
 import { useProducts, useProductsMutation } from '../hooks/useQueries';
 
+import { TableSkeleton } from '../components/Skeleton';
+
 const Inventory: React.FC = () => {
   const { t } = useLanguage();
 
@@ -14,6 +16,8 @@ const Inventory: React.FC = () => {
     isLoading,
     error
   } = useProducts({ limit: 100 });
+
+  if (isLoading) return <TableSkeleton rows={8} />;
   const { create, update, delete: remove } = useProductsMutation();
 
   const products = productsData?.products || [];
