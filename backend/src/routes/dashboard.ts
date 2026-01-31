@@ -4,6 +4,8 @@ import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { analyzeSpoilageRisk, generateForecast } from '../services/groqService';
 import { Product, Transaction } from '../types';
 
+import { getCache, setCache } from '../services/cache';
+
 const router = Router();
 
 /**
@@ -13,6 +15,19 @@ const router = Router();
 router.get('/overview', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.user?.uid;
+    const cacheKey = `overview_${userId}`;
+
+    // Check in-memory cache
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      // Set Cache-Control header for deployment (e.g., 60 seconds)
+      res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
+      return res.json({
+        success: true,
+        data: cachedData,
+        fromCache: true
+      });
+    }
 
     // Get products
     const productsSnapshot = await collections.products
@@ -82,28 +97,35 @@ router.get('/overview', authenticateToken, async (req: AuthenticatedRequest, res
     // Predict next month profit (simple projection)
     const predictedProfit = netProfit > 0 ? netProfit * 1.05 : netProfit * 0.95;
     const confidenceScore = Math.min(95, Math.max(60, 75 + (products.length * 2)));
+    const responseData = {
+      stats: {
+        inventoryValue: Math.round(inventoryValue * 100) / 100,
+        activeProducts,
+        lowStock: lowStockProducts.length,
+        predictedProfit: Math.round(predictedProfit * 100) / 100,
+        confidenceScore,
+        netProfit: Math.round(netProfit * 100) / 100
+      },
+      spoilageRisks: criticalRisks.slice(0, 5),
+      recentInsights,
+      velocityMetrics,
+      lowStockProducts: lowStockProducts.slice(0, 5).map(p => ({
+        id: p.id,
+        name: p.name,
+        quantity: p.quantity,
+        velocity: p.velocity
+      }))
+    };
+
+    // Save to in-memory cache for 5 minutes
+    setCache(cacheKey, responseData);
+
+    // Set Cache-Control header for deployment (60 seconds)
+    res.setHeader('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=30');
 
     res.json({
       success: true,
-      data: {
-        stats: {
-          inventoryValue: Math.round(inventoryValue * 100) / 100,
-          activeProducts,
-          lowStock: lowStockProducts.length,
-          predictedProfit: Math.round(predictedProfit * 100) / 100,
-          confidenceScore,
-          netProfit: Math.round(netProfit * 100) / 100
-        },
-        spoilageRisks: criticalRisks.slice(0, 5),
-        recentInsights,
-        velocityMetrics,
-        lowStockProducts: lowStockProducts.slice(0, 5).map(p => ({
-          id: p.id,
-          name: p.name,
-          quantity: p.quantity,
-          velocity: p.velocity
-        }))
-      }
+      data: responseData
     });
 
   } catch (error) {
@@ -123,6 +145,18 @@ router.get('/forecast', authenticateToken, async (req: AuthenticatedRequest, res
   try {
     const userId = req.user?.uid;
     const days = Number(req.query.days) || 30;
+    const cacheKey = `forecast_${userId}_${days}`;
+
+    // Check in-memory cache
+    const cachedData = getCache(cacheKey);
+    if (cachedData) {
+      res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=60');
+      return res.json({
+        success: true,
+        data: cachedData,
+        fromCache: true
+      });
+    }
 
     // Get historical transaction data
     const sixtyDaysAgo = new Date();
@@ -173,31 +207,39 @@ router.get('/forecast', authenticateToken, async (req: AuthenticatedRequest, res
       ? historicalData.reduce((sum, d) => sum + d.amount, 0) / historicalData.length
       : 0;
 
+    const responseData = {
+      forecast: combinedData,
+      scenarios: {
+        baseCase: {
+          monthlyProfit: Math.round(avgDailyProfit * 30),
+          confidence: 0.75
+        },
+        bestCase: {
+          monthlyProfit: Math.round(avgDailyProfit * 30 * 1.25),
+          confidence: 0.60
+        },
+        worstCase: {
+          monthlyProfit: Math.round(avgDailyProfit * 30 * 0.75),
+          confidence: 0.60
+        }
+      },
+      drivers: [
+        { name: 'Seasonal demand increase', impact: '+8%', direction: 'up' },
+        { name: 'Utility costs rising', impact: '-3%', direction: 'down' },
+        { name: 'New supplier discount', impact: '+5%', direction: 'up' },
+        { name: 'Competitor pricing', impact: '-2%', direction: 'down' }
+      ]
+    };
+
+    // Save to in-memory cache for 5 minutes
+    setCache(cacheKey, responseData);
+
+    // Set Cache-Control header for deployment (5 minutes)
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=60');
+
     res.json({
       success: true,
-      data: {
-        forecast: combinedData,
-        scenarios: {
-          baseCase: {
-            monthlyProfit: Math.round(avgDailyProfit * 30),
-            confidence: 0.75
-          },
-          bestCase: {
-            monthlyProfit: Math.round(avgDailyProfit * 30 * 1.25),
-            confidence: 0.60
-          },
-          worstCase: {
-            monthlyProfit: Math.round(avgDailyProfit * 30 * 0.75),
-            confidence: 0.60
-          }
-        },
-        drivers: [
-          { name: 'Seasonal demand increase', impact: '+8%', direction: 'up' },
-          { name: 'Utility costs rising', impact: '-3%', direction: 'down' },
-          { name: 'New supplier discount', impact: '+5%', direction: 'up' },
-          { name: 'Competitor pricing', impact: '-2%', direction: 'down' }
-        ]
-      }
+      data: responseData
     });
 
   } catch (error) {

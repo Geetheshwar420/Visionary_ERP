@@ -2,10 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, Send, X, Bot, Sparkles, Minimize2, User } from 'lucide-react';
 import { Product } from '../types';
 import { aiApi } from '../services/api';
+import { useProducts } from '../hooks/useQueries';
 
-interface AIChatProps {
-  products: Product[];
-}
+interface AIChatProps { }
 
 interface Message {
   role: 'user' | 'model';
@@ -13,7 +12,9 @@ interface Message {
   timestamp: number;
 }
 
-const AIChat: React.FC<AIChatProps> = ({ products }) => {
+const AIChat: React.FC<AIChatProps> = () => {
+  const { data: productsData } = useProducts({ limit: 100 });
+  const products = productsData?.products || [];
   const [isOpen, setIsOpen] = useState(false);
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([
@@ -32,7 +33,7 @@ const AIChat: React.FC<AIChatProps> = ({ products }) => {
 
   const getDemoResponse = (message: string): string => {
     const lowerMessage = message.toLowerCase();
-    
+
     if (lowerMessage.includes('expir')) {
       const expiring = products.filter(p => {
         const days = Math.ceil((new Date(p.expiryDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
@@ -40,12 +41,12 @@ const AIChat: React.FC<AIChatProps> = ({ products }) => {
       });
       return `You have ${expiring.length} products expiring within 7 days: ${expiring.map(p => p.name).join(', ') || 'None detected'}. Consider promotional discounts to accelerate sales.`;
     }
-    
+
     if (lowerMessage.includes('stock') || lowerMessage.includes('inventory')) {
       const lowStock = products.filter(p => p.quantity < 10);
       return `Current inventory: ${products.length} active products. ${lowStock.length} items are running low. Consider reordering: ${lowStock.map(p => p.name).join(', ') || 'All items well stocked'}.`;
     }
-    
+
     if (lowerMessage.includes('profit') || lowerMessage.includes('margin')) {
       const avgMargin = products.length > 0
         ? products.reduce((sum, p) => sum + ((p.sellingPrice - p.costPrice) / p.sellingPrice * 100), 0) / products.length
@@ -75,18 +76,18 @@ const AIChat: React.FC<AIChatProps> = ({ products }) => {
       const result = await aiApi.chat(userMsg, chatHistory);
 
       if (result.success && result.data) {
-        setMessages(prev => [...prev, { 
-          role: 'model', 
-          text: result.data!.response, 
-          timestamp: result.data!.timestamp 
+        setMessages(prev => [...prev, {
+          role: 'model',
+          text: result.data!.response,
+          timestamp: result.data!.timestamp
         }]);
       } else {
         // Fallback to demo response if API fails
         const demoResponse = getDemoResponse(userMsg);
-        setMessages(prev => [...prev, { 
-          role: 'model', 
-          text: demoResponse, 
-          timestamp: Date.now() 
+        setMessages(prev => [...prev, {
+          role: 'model',
+          text: demoResponse,
+          timestamp: Date.now()
         }]);
       }
     } catch (error) {
@@ -109,11 +110,10 @@ const AIChat: React.FC<AIChatProps> = ({ products }) => {
       {/* Floating Action Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-lg transition-all transform hover:scale-105 ${
-          isOpen 
-            ? 'bg-slate-800 text-white rotate-90' 
-            : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/30'
-        }`}
+        className={`fixed bottom-6 right-6 z-50 p-4 rounded-full shadow-lg transition-all transform hover:scale-105 ${isOpen
+          ? 'bg-slate-800 text-white rotate-90'
+          : 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:shadow-blue-500/30'
+          }`}
       >
         {isOpen ? <X size={24} /> : <MessageSquare size={24} />}
       </button>
@@ -143,33 +143,31 @@ const AIChat: React.FC<AIChatProps> = ({ products }) => {
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-950">
             {messages.map((msg, idx) => (
-              <div 
-                key={idx} 
+              <div
+                key={idx}
                 className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
               >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                  msg.role === 'user' ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
-                }`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.role === 'user' ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300' : 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400'
+                  }`}>
                   {msg.role === 'user' ? <User size={14} /> : <Bot size={14} />}
                 </div>
-                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${
-                  msg.role === 'user' 
-                    ? 'bg-blue-600 text-white rounded-tr-sm' 
-                    : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tl-sm'
-                }`}>
+                <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${msg.role === 'user'
+                  ? 'bg-blue-600 text-white rounded-tr-sm'
+                  : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-700 rounded-tl-sm'
+                  }`}>
                   {msg.text}
                 </div>
               </div>
             ))}
             {isTyping && (
               <div className="flex gap-3">
-                 <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center shrink-0">
                   <Bot size={14} className="text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div className="bg-white dark:bg-slate-800 rounded-2xl px-4 py-3 border border-slate-100 dark:border-slate-700 rounded-tl-sm flex gap-1">
                   <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce"></span>
-                  <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></span>
-                  <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{animationDelay: '0.4s'}}></span>
+                  <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="w-2 h-2 bg-slate-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
                 </div>
               </div>
             )}
@@ -187,7 +185,7 @@ const AIChat: React.FC<AIChatProps> = ({ products }) => {
                 placeholder="Ask about inventory..."
                 className="w-full pl-4 pr-12 py-3 bg-slate-100 dark:bg-slate-800 border border-transparent focus:border-indigo-500 rounded-xl text-sm focus:outline-none dark:text-white transition-all"
               />
-              <button 
+              <button
                 onClick={handleSend}
                 disabled={!input.trim() || isTyping}
                 className="absolute right-2 p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"

@@ -4,8 +4,20 @@ import { collections, FieldValue } from '../config/firebase';
 import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { validateProduct, validateProductUpdate, validateId, validatePagination } from '../middleware/validation';
 import { Product } from '../types';
+import { deleteCache } from '../services/cache';
 
 const router = Router();
+
+// Helper to invalidate user dashboard cache
+const invalidateDashboardCache = (userId?: string) => {
+  if (userId) {
+    deleteCache(`overview_${userId}`);
+    // We don't have an easy way to list all forecast variants by days, 
+    // but we can invalidate the most common ones or use a more robust cache key system later.
+    deleteCache(`forecast_${userId}_30`);
+    deleteCache(`forecast_${userId}_7`);
+  }
+};
 
 /**
  * GET /api/products
@@ -25,7 +37,7 @@ router.get('/', authenticateToken, validatePagination, async (req: Authenticated
 
     // Get all products (filtering and pagination done in memory for complex queries)
     const snapshot = await query.get();
-    
+
     let products = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -34,7 +46,7 @@ router.get('/', authenticateToken, validatePagination, async (req: Authenticated
     // Apply search filter
     if (search) {
       const searchLower = (search as string).toLowerCase();
-      products = products.filter(p => 
+      products = products.filter(p =>
         p.name.toLowerCase().includes(searchLower) ||
         p.sku.toLowerCase().includes(searchLower)
       );
@@ -87,7 +99,7 @@ router.get('/categories', authenticateToken, async (req: AuthenticatedRequest, r
   try {
     const userId = req.user?.uid;
     const snapshot = await collections.products.where('userId', '==', userId).get();
-    
+
     const categories = [...new Set(snapshot.docs.map(doc => doc.data().category))];
 
     res.json({
@@ -193,7 +205,7 @@ router.get('/:id', authenticateToken, validateId, async (req: AuthenticatedReque
     }
 
     const product = doc.data();
-    
+
     // Verify ownership
     if (product?.userId !== userId) {
       return res.status(403).json({
@@ -256,6 +268,7 @@ router.post('/', authenticateToken, validateProduct, async (req: AuthenticatedRe
     };
 
     await collections.products.doc(productId).set(productData);
+    invalidateDashboardCache(userId);
 
     res.status(201).json({
       success: true,
@@ -300,7 +313,7 @@ router.put('/:id', authenticateToken, validateId, validateProductUpdate, async (
     // Sanitize updates
     const allowedFields = ['name', 'sku', 'category', 'quantity', 'costPrice', 'sellingPrice', 'expiryDate', 'velocity', 'lastSold'];
     const sanitizedUpdates: any = { updatedAt: FieldValue.serverTimestamp() };
-    
+
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         sanitizedUpdates[field] = updates[field];
@@ -308,6 +321,7 @@ router.put('/:id', authenticateToken, validateId, validateProductUpdate, async (
     }
 
     await collections.products.doc(id).update(sanitizedUpdates);
+    invalidateDashboardCache(userId);
 
     const updated = await collections.products.doc(id).get();
 
@@ -369,6 +383,7 @@ router.patch('/:id/stock', authenticateToken, validateId, async (req: Authentica
       quantity: newQuantity,
       updatedAt: FieldValue.serverTimestamp()
     });
+    invalidateDashboardCache(userId);
 
     res.json({
       success: true,
@@ -410,6 +425,7 @@ router.delete('/:id', authenticateToken, validateId, async (req: AuthenticatedRe
     }
 
     await collections.products.doc(id).delete();
+    invalidateDashboardCache(userId);
 
     res.json({
       success: true,
@@ -460,6 +476,7 @@ router.post('/seed', authenticateToken, async (req: AuthenticatedRequest, res: R
     }
 
     await batch.commit();
+    invalidateDashboardCache(userId);
 
     res.json({
       success: true,

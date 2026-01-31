@@ -1,26 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Search, Filter, Plus, Edit2, AlertCircle, Eye, X, Save, Check, Calendar, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Product } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { productsApi } from '../services/api';
+import { useProducts, useProductsMutation } from '../hooks/useQueries';
 
-interface InventoryProps {
-  products: Product[];
-  setProducts: React.Dispatch<React.SetStateAction<Product[]>>;
-}
-
-const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
+const Inventory: React.FC = () => {
   const { t } = useLanguage();
+
+  // React Query hooks
+  const {
+    data: productsData,
+    isLoading,
+    error
+  } = useProducts({ limit: 100 });
+  const { create, update, delete: remove } = useProductsMutation();
+
+  const products = productsData?.products || [];
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [sortBy, setSortBy] = useState<'name' | 'stock' | 'velocity'>('name');
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  
+
   // Form State
   const [formData, setFormData] = useState<Partial<Product>>({});
 
@@ -55,71 +60,27 @@ const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    
+
     try {
       if (editingProduct) {
-        // Update existing product via API
-        const result = await productsApi.update(editingProduct.id, formData);
-        if (result.success && result.data) {
-          setProducts(prev => prev.map(p => p.id === editingProduct.id ? result.data! : p));
-        } else {
-          // Fallback to local update
-          setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...formData } as Product : p));
-        }
+        await update.mutateAsync({ id: editingProduct.id, updates: formData });
       } else {
-        // Create new product via API
-        const result = await productsApi.create(formData as Omit<Product, 'id'>);
-        if (result.success && result.data) {
-          setProducts(prev => [...prev, result.data!]);
-        } else {
-          // Fallback to local creation
-          const newProduct: Product = {
-            ...formData,
-            id: Math.random().toString(36).substr(2, 9),
-            velocity: formData.velocity || 0,
-          } as Product;
-          setProducts(prev => [...prev, newProduct]);
-        }
+        await create.mutateAsync(formData as Omit<Product, 'id' | 'velocity' | 'lastSold'>);
       }
       setIsModalOpen(false);
     } catch (error) {
       console.error('Error saving product:', error);
-      // Fallback to local operation
-      if (editingProduct) {
-        setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...p, ...formData } as Product : p));
-      } else {
-        const newProduct: Product = {
-          ...formData,
-          id: Math.random().toString(36).substr(2, 9),
-          velocity: formData.velocity || 0,
-        } as Product;
-        setProducts(prev => [...prev, newProduct]);
-      }
-      setIsModalOpen(false);
+      alert('Failed to save product. Please try again.');
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDelete = async (productId: string) => {
-    if (!confirm('Are you sure you want to delete this product?')) return;
-    
-    try {
-      const result = await productsApi.delete(productId);
-      if (result.success) {
-        setProducts(prev => prev.filter(p => p.id !== productId));
-      }
-    } catch (error) {
-      console.error('Error deleting product:', error);
-      // Fallback to local delete
-      setProducts(prev => prev.filter(p => p.id !== productId));
-    }
-  };
 
   const filteredProducts = products
     .filter(p => (filterCategory === 'All' || p.category === filterCategory))
-    .filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    .filter(p =>
+      p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       p.sku.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
@@ -136,7 +97,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
           <h2 className="text-2xl font-heading font-bold text-slate-900 dark:text-white">{t('inventoryManagement')}</h2>
           <p className="text-slate-500 dark:text-slate-400 text-sm">{t('manageStockDesc')}</p>
         </div>
-        <button 
+        <button
           onClick={handleAdd}
           className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors shadow-sm shadow-blue-600/20"
         >
@@ -149,17 +110,17 @@ const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
       <div className="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
-          <input 
-            type="text" 
+          <input
+            type="text"
             placeholder={t('searchPlaceholder')}
             className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0">
-          <select 
+          <select
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
             className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -167,7 +128,7 @@ const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
 
-          <select 
+          <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
             className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -246,19 +207,31 @@ const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-2">
-                        <button 
+                        <button
                           onClick={() => navigate(`/product/${product.id}`)}
                           className="p-2 hover:bg-blue-50 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
                           title="View Details"
                         >
                           <Eye size={16} />
                         </button>
-                        <button 
+                        <button
                           onClick={(e) => handleEdit(product, e)}
-                          className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors" 
+                          className="p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-white transition-colors"
                           title="Edit"
                         >
                           <Edit2 size={16} />
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (window.confirm(`Are you sure you want to delete ${product.name}?`)) {
+                              remove.mutate(product.id);
+                            }
+                          }}
+                          className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-slate-500 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 transition-colors"
+                          title="Delete"
+                        >
+                          <X size={16} />
                         </button>
                       </div>
                     </td>
@@ -288,114 +261,114 @@ const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
                 <X size={24} />
               </button>
             </div>
-            
+
             {/* Scrollable Content */}
             <div className="overflow-y-auto p-6 flex-1">
               <form id="product-form" onSubmit={handleSave} className="space-y-5">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   <div className="col-span-1 md:col-span-2">
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('product')} Name</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={formData.name || ''} 
-                      onChange={e => setFormData({...formData, name: e.target.value})}
+                    <input
+                      required
+                      type="text"
+                      value={formData.name || ''}
+                      onChange={e => setFormData({ ...formData, name: e.target.value })}
                       placeholder="e.g., Organic Whole Milk"
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('sku')}</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={formData.sku || ''} 
-                      onChange={e => setFormData({...formData, sku: e.target.value})}
+                    <input
+                      required
+                      type="text"
+                      value={formData.sku || ''}
+                      onChange={e => setFormData({ ...formData, sku: e.target.value })}
                       placeholder="e.g., DAIRY-001"
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('category')}</label>
-                    <input 
-                      required 
-                      type="text" 
-                      value={formData.category || ''} 
-                      onChange={e => setFormData({...formData, category: e.target.value})}
+                    <input
+                      required
+                      type="text"
+                      value={formData.category || ''}
+                      onChange={e => setFormData({ ...formData, category: e.target.value })}
                       placeholder="e.g., Dairy"
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('quantity')}</label>
-                    <input 
-                      required 
-                      type="number" 
+                    <input
+                      required
+                      type="number"
                       min="0"
-                      value={formData.quantity || 0} 
-                      onChange={e => setFormData({...formData, quantity: parseInt(e.target.value)})}
+                      value={formData.quantity || 0}
+                      onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('expiry')}</label>
-                    <input 
-                      required 
-                      type="date" 
-                      value={formData.expiryDate || ''} 
-                      onChange={e => setFormData({...formData, expiryDate: e.target.value})}
+                    <input
+                      required
+                      type="date"
+                      value={formData.expiryDate || ''}
+                      onChange={e => setFormData({ ...formData, expiryDate: e.target.value })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('costPrice')} ($)</label>
-                    <input 
-                      required 
-                      type="number" 
+                    <input
+                      required
+                      type="number"
                       step="0.01"
                       min="0"
-                      value={formData.costPrice || 0} 
-                      onChange={e => setFormData({...formData, costPrice: parseFloat(e.target.value)})}
+                      value={formData.costPrice || 0}
+                      onChange={e => setFormData({ ...formData, costPrice: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('sellingPrice')} ($)</label>
-                    <input 
-                      required 
-                      type="number" 
+                    <input
+                      required
+                      type="number"
                       step="0.01"
                       min="0"
-                      value={formData.sellingPrice || 0} 
-                      onChange={e => setFormData({...formData, sellingPrice: parseFloat(e.target.value)})}
+                      value={formData.sellingPrice || 0}
+                      onChange={e => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('lastSold')}</label>
-                    <input 
-                      type="date" 
-                      value={formData.lastSold || ''} 
-                      onChange={e => setFormData({...formData, lastSold: e.target.value})}
+                    <input
+                      type="date"
+                      value={formData.lastSold || ''}
+                      onChange={e => setFormData({ ...formData, lastSold: e.target.value })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('velocity')} (Units/Day)</label>
-                    <input 
-                      type="number" 
+                    <input
+                      type="number"
                       step="0.1"
                       min="0"
-                      value={formData.velocity || 0} 
-                      onChange={e => setFormData({...formData, velocity: parseFloat(e.target.value)})}
+                      value={formData.velocity || 0}
+                      onChange={e => setFormData({ ...formData, velocity: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
                     />
                   </div>
@@ -405,14 +378,14 @@ const Inventory: React.FC<InventoryProps> = ({ products, setProducts }) => {
 
             {/* Sticky Footer */}
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-3 bg-white dark:bg-slate-900 flex-shrink-0 rounded-b-2xl">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
                 className="px-4 py-2 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors font-medium"
               >
                 {t('cancel')}
               </button>
-              <button 
+              <button
                 type="submit"
                 form="product-form"
                 className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors flex items-center gap-2 shadow-lg shadow-blue-900/20"

@@ -1,79 +1,45 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { DollarSign, TrendingUp, TrendingDown, FileText, Download, Filter, Loader2 } from 'lucide-react';
 import { Transaction } from '../types';
 import { useLanguage } from '../contexts/LanguageContext';
-import { financialsApi } from '../services/api';
-
-const DEFAULT_TRANSACTIONS: Transaction[] = [];
-
-const DEFAULT_FINANCIAL_DATA: any[] = [];
-
-const DEFAULT_EXPENSE_BREAKDOWN: any[] = [];
+import { useFinancialSummary, useIncomeExpense, useExpenseBreakdown, useTransactions } from '../hooks/useQueries';
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#6366F1', '#EC4899'];
 
 const Financials: React.FC = () => {
   const { t } = useLanguage();
-  const [transactions, setTransactions] = useState<Transaction[]>(DEFAULT_TRANSACTIONS);
-  const [financialData, setFinancialData] = useState(DEFAULT_FINANCIAL_DATA);
-  const [expenseBreakdown, setExpenseBreakdown] = useState(DEFAULT_EXPENSE_BREAKDOWN);
-  const [summary, setSummary] = useState({
-    totalRevenue: 0,
-    totalExpenses: 0,
-    netProfit: 0,
-    revenueTrend: 0,
-    expenseTrend: 0,
-    profitTrend: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchFinancialData = async () => {
-      setIsLoading(true);
-      try {
-        // Fetch all financial data in parallel
-        const [summaryResult, incomeExpenseResult, breakdownResult, transactionsResult] = await Promise.all([
-          financialsApi.getSummary(),
-          financialsApi.getIncomeExpense(),
-          financialsApi.getExpenseBreakdown(),
-          financialsApi.getTransactions({ limit: 10 })
-        ]);
+  const { data: summaryData, isLoading: summaryLoading } = useFinancialSummary();
+  const { data: incomeExpenseData = [], isLoading: ieLoading } = useIncomeExpense();
+  const { data: breakdownData = [], isLoading: breakdownLoading } = useExpenseBreakdown();
+  const { data: transactionsData, isLoading: txLoading } = useTransactions({ limit: 10 });
 
-        if (summaryResult.success && summaryResult.data) {
-          setSummary({
-            totalRevenue: summaryResult.data.totalRevenue || 35240.00,
-            totalExpenses: summaryResult.data.totalExpenses || 19500.00,
-            netProfit: summaryResult.data.netProfit || 15740.00,
-            revenueTrend: summaryResult.data.revenueTrend || 12.5,
-            expenseTrend: summaryResult.data.expenseTrend || 4.2,
-            profitTrend: summaryResult.data.profitTrend || 22.1
-          });
-        }
+  const isLoading = summaryLoading || ieLoading || breakdownLoading || txLoading;
 
-        if (incomeExpenseResult.success && incomeExpenseResult.data?.length) {
-          setFinancialData(incomeExpenseResult.data);
-        }
+  const summary = {
+    totalRevenue: summaryData?.totalRevenue || 0,
+    totalExpenses: summaryData?.totalExpenses || 0,
+    netProfit: summaryData?.netProfit || 0,
+    revenueTrend: summaryData?.revenueChange || 0,
+    expenseTrend: summaryData?.expenseChange || 0,
+    profitTrend: summaryData?.profitMargin || 0
+  };
 
-        if (breakdownResult.success && breakdownResult.data?.length) {
-          setExpenseBreakdown(breakdownResult.data);
-        }
-
-        if (transactionsResult.success && transactionsResult.data?.transactions?.length) {
-          setTransactions(transactionsResult.data.transactions);
-        }
-      } catch (error) {
-        console.log('Using default financial data as fallback');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchFinancialData();
-  }, []);
+  const financialData = incomeExpenseData;
+  const expenseBreakdown = breakdownData;
+  const transactions = transactionsData?.transactions || [];
 
   const totalIncome = useMemo(() => transactions.filter(t => t.type === 'income').reduce((acc, t) => acc + t.amount, 0), [transactions]);
   const totalExpense = useMemo(() => transactions.filter(t => t.type === 'expense').reduce((acc, t) => acc + t.amount, 0), [transactions]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center items-center h-96">
+        <Loader2 className="h-10 w-10 animate-spin text-blue-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -238,8 +204,8 @@ const Financials: React.FC = () => {
                   <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-300">{tx.date}</td>
                   <td className="px-6 py-4">
                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${tx.status === 'completed'
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
-                        : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
+                      ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
+                      : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400'
                       }`}>
                       {tx.status}
                     </span>

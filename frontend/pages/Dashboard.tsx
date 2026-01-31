@@ -1,99 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AlertTriangle, Sparkles, RefreshCw, ArrowRight, TrendingUp, Package, DollarSign } from 'lucide-react';
 import VelocityCard from '../components/VelocityCard';
-import { Product, Insight, SpoilageRisk, RiskLevel } from '../types';
-import { generateInventoryInsights, getSpoilageRisks } from '../services/geminiService';
-import { dashboardApi, insightsApi } from '../services/api';
+import { SpoilageRisk, RiskLevel } from '../types';
+import { generateInventoryInsights } from '../services/geminiService';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useDashboardOverview, useProducts } from '../hooks/useQueries';
 
-interface DashboardProps {
-  products: Product[];
-  insights: Insight[];
-  setInsights: React.Dispatch<React.SetStateAction<Insight[]>>;
-}
-
-const Dashboard: React.FC<DashboardProps> = ({ products, insights, setInsights }) => {
+const Dashboard: React.FC = () => {
   const { t } = useLanguage();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [risks, setRisks] = useState<SpoilageRisk[]>([]);
-  const [dashboardStats, setDashboardStats] = useState<{
-    predictedProfit: number;
-    profitTrend: number;
-    confidence: number;
-  } | null>(null);
+  const [manuallyGeneratedInsights, setManuallyGeneratedInsights] = useState<any[]>([]);
 
-  // Calculate High Level Stats
+  // Use React Query hooks instead of Props and useEffect
+  const { data: overview, isLoading: overviewLoading } = useDashboardOverview();
+  const { data: productsData, isLoading: productsLoading } = useProducts({ limit: 100 });
+
+  const products = productsData?.products || [];
+
+  // High Level Stats from overview or calculated from products
   const totalStock = products.reduce((acc, p) => acc + p.quantity, 0);
-  const lowStockCount = products.filter(p => p.quantity < 10).length;
+  const lowStockCount = overview?.stats.lowStock ?? products.filter(p => p.quantity < 10).length;
 
-  // Fetch dashboard data and risks from backend
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        // Fetch spoilage risks from backend
-        const spoilageResult = await getSpoilageRisks(products);
-        setRisks(spoilageResult);
+  const risks = overview?.spoilageRisks || [];
+  const dashboardStats = overview ? {
+    predictedProfit: overview.stats.predictedProfit,
+    profitTrend: 12.4, // Trend would ideally come from backend history comparison
+    confidence: overview.stats.confidenceScore,
+  } : null;
 
-        // Try to fetch dashboard overview (may fail if backend not running)
-        const overviewResult = await dashboardApi.getOverview();
-        if (overviewResult.success && overviewResult.data) {
-          setDashboardStats({
-            predictedProfit: overviewResult.data.stats.predictedProfit || 12450,
-            profitTrend: 12.4,
-            confidence: 92
-          });
-        }
-      } catch (error) {
-        console.log('Using local risk calculation as fallback');
-        // Fallback to local calculation
-        const localRisks: SpoilageRisk[] = products.map(p => {
-          const today = new Date();
-          const expiry = new Date(p.expiryDate);
-          const diffTime = Math.abs(expiry.getTime() - today.getTime());
-          const daysToExpiry = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-          const timeFactor = Math.max(1, 14 - daysToExpiry);
-          const riskScore = (p.quantity * timeFactor) / (Math.max(0.1, p.velocity));
-
-          let riskLevel = RiskLevel.LOW;
-          let recommendation = "Monitor";
-
-          if (riskScore > 100 && daysToExpiry < 5) {
-            riskLevel = RiskLevel.CRITICAL;
-            recommendation = `Discount 40%`;
-          } else if (riskScore > 50 || daysToExpiry < 7) {
-            riskLevel = RiskLevel.HIGH;
-            recommendation = `Discount 25%`;
-          }
-
-          return {
-            productId: p.id,
-            productName: p.name,
-            daysToExpiry,
-            riskScore,
-            riskLevel,
-            potentialLoss: p.quantity * p.costPrice,
-            recommendation
-          };
-        }).filter(r => r.riskLevel === RiskLevel.CRITICAL || r.riskLevel === RiskLevel.HIGH)
-          .sort((a, b) => b.riskScore - a.riskScore);
-
-        setRisks(localRisks);
-      }
-    };
-
-    if (products.length > 0) {
-      fetchDashboardData();
-    }
-  }, [products]);
+  const insights = [...manuallyGeneratedInsights, ...(overview?.recentInsights || [])];
 
   const handleGenerateInsights = async () => {
     setIsGenerating(true);
-    const newInsights = await generateInventoryInsights(products);
-    if (newInsights.length > 0) {
-      setInsights(prev => [...newInsights, ...prev]);
+    try {
+      const newInsights = await generateInventoryInsights(products);
+      if (newInsights && newInsights.length > 0) {
+        setManuallyGeneratedInsights(prev => [...newInsights, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error generating insights:', error);
+    } finally {
+      setIsGenerating(false);
     }
-    setIsGenerating(false);
   };
 
   // Calculate velocity metrics by category

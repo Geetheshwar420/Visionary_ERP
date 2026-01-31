@@ -4,8 +4,18 @@ import { collections, FieldValue } from '../config/firebase';
 import { AuthenticatedRequest, authenticateToken } from '../middleware/auth';
 import { validateTransaction, validateId, validatePagination } from '../middleware/validation';
 import { Transaction } from '../types';
+import { deleteCache } from '../services/cache';
 
 const router = Router();
+
+// Helper to invalidate user dashboard cache
+const invalidateDashboardCache = (userId?: string) => {
+  if (userId) {
+    deleteCache(`overview_${userId}`);
+    deleteCache(`forecast_${userId}_30`);
+    deleteCache(`forecast_${userId}_7`);
+  }
+};
 
 /**
  * GET /api/financials/summary
@@ -19,7 +29,7 @@ router.get('/summary', authenticateToken, async (req: AuthenticatedRequest, res:
     // Calculate date range
     const now = new Date();
     let startDate = new Date();
-    
+
     switch (period) {
       case 'week':
         startDate.setDate(now.getDate() - 7);
@@ -55,7 +65,7 @@ router.get('/summary', authenticateToken, async (req: AuthenticatedRequest, res:
     // Calculate percentage changes (compare to previous period)
     const prevStartDate = new Date(startDate);
     prevStartDate.setMonth(prevStartDate.getMonth() - 1);
-    
+
     const prevSnapshot = await collections.transactions
       .where('userId', '==', userId)
       .where('date', '>=', prevStartDate.toISOString().split('T')[0])
@@ -218,7 +228,7 @@ router.get('/transactions', authenticateToken, validatePagination, async (req: A
     }
 
     const snapshot = await query.orderBy('date', 'desc').get();
-    
+
     let transactions = snapshot.docs.map(doc => ({
       id: doc.id,
       ...doc.data()
@@ -283,6 +293,7 @@ router.post('/transactions', authenticateToken, validateTransaction, async (req:
     };
 
     await collections.transactions.doc(transactionId).set(transactionData);
+    invalidateDashboardCache(userId);
 
     res.status(201).json({
       success: true,
@@ -326,7 +337,7 @@ router.put('/transactions/:id', authenticateToken, validateId, async (req: Authe
 
     const allowedFields = ['type', 'category', 'description', 'amount', 'date', 'status'];
     const sanitizedUpdates: any = {};
-    
+
     for (const field of allowedFields) {
       if (updates[field] !== undefined) {
         sanitizedUpdates[field] = updates[field];
@@ -334,6 +345,7 @@ router.put('/transactions/:id', authenticateToken, validateId, async (req: Authe
     }
 
     await collections.transactions.doc(id).update(sanitizedUpdates);
+    invalidateDashboardCache(userId);
 
     const updated = await collections.transactions.doc(id).get();
 
@@ -377,6 +389,7 @@ router.delete('/transactions/:id', authenticateToken, validateId, async (req: Au
     }
 
     await collections.transactions.doc(id).delete();
+    invalidateDashboardCache(userId);
 
     res.json({
       success: true,
@@ -425,6 +438,7 @@ router.post('/transactions/seed', authenticateToken, async (req: AuthenticatedRe
     }
 
     await batch.commit();
+    invalidateDashboardCache(userId);
 
     res.json({
       success: true,

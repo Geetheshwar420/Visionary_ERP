@@ -1,48 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { ForecastData } from '../types';
-import { FORECAST_DATA } from '../constants';
 import { TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 import { useLanguage } from '../contexts/LanguageContext';
-import { dashboardApi } from '../services/api';
+import { useForecast } from '../hooks/useQueries';
 
 const Forecast: React.FC = () => {
   const { t } = useLanguage();
-  const [forecastData, setForecastData] = useState<ForecastData[]>([]);
-  const [forecastStats, setForecastStats] = useState({
-    predictedProfit: 0,
-    bestCase: 0,
-    worstCase: 0,
-    confidence: 0
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const { data, isLoading } = useForecast(30);
 
-  useEffect(() => {
-    const fetchForecast = async () => {
-      setIsLoading(true);
-      try {
-        const result = await dashboardApi.getForecast(30);
-        if (result.success && result.data) {
-          if (result.data.forecast?.length) {
-            setForecastData(result.data.forecast);
-          }
-          setForecastStats({
-            predictedProfit: result.data.predictedProfit || 12450,
-            bestCase: result.data.bestCase || 14300,
-            worstCase: result.data.worstCase || 10600,
-            confidence: result.data.confidence || 85
-          });
-        }
-      } catch (error) {
-        console.log('Using default forecast data as fallback');
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const forecastData = data?.forecast || [];
+  const forecastStats = {
+    predictedProfit: data?.scenarios?.baseCase?.monthlyProfit || 0,
+    bestCase: data?.scenarios?.bestCase?.monthlyProfit || 0,
+    worstCase: data?.scenarios?.worstCase?.monthlyProfit || 0,
+    confidence: data?.scenarios?.baseCase?.confidence || 0
+  };
 
-    fetchForecast();
-  }, []);
-
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+      </div>
+    );
+  }
   // Split data for styling
   const todayIndex = 15;
   const currentPrediction = forecastData[todayIndex + 1]?.predicted || 0;
