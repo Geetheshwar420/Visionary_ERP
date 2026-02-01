@@ -67,7 +67,7 @@ const AIChat: React.FC<AIChatProps> = () => {
 
     try {
       // Call backend AI API (Groq Llama 3.3 70B)
-      const chatHistory = messages.map(m => ({
+      const chatHistory = messages.map((m: Message) => ({
         role: m.role === 'user' ? 'user' : 'assistant',
         text: m.text,
         timestamp: m.timestamp
@@ -76,7 +76,7 @@ const AIChat: React.FC<AIChatProps> = () => {
       const result = await aiApi.chat(userMsg, chatHistory);
 
       if (result.success && result.data) {
-        setMessages(prev => [...prev, {
+        setMessages((prev: Message[]) => [...prev, {
           role: 'model',
           text: result.data!.response,
           timestamp: result.data!.timestamp
@@ -84,7 +84,7 @@ const AIChat: React.FC<AIChatProps> = () => {
       } else {
         // Fallback to demo response if API fails
         const demoResponse = getDemoResponse(userMsg);
-        setMessages(prev => [...prev, {
+        setMessages((prev: Message[]) => [...prev, {
           role: 'model',
           text: demoResponse,
           timestamp: Date.now()
@@ -92,13 +92,13 @@ const AIChat: React.FC<AIChatProps> = () => {
       }
     } catch (error) {
       console.error("Chat error:", error);
-      setMessages(prev => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to the AI service. Please try again.", timestamp: Date.now() }]);
+      setMessages((prev: Message[]) => [...prev, { role: 'model', text: "Sorry, I encountered an error connecting to the AI service. Please try again.", timestamp: Date.now() }]);
     } finally {
       setIsTyping(false);
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -135,14 +135,14 @@ const AIChat: React.FC<AIChatProps> = () => {
                 </p>
               </div>
             </div>
-            <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white">
+            <button onClick={() => setIsOpen(false)} title="Close chat" className="text-slate-400 hover:text-white">
               <Minimize2 size={18} />
             </button>
           </div>
 
           {/* Messages Area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 dark:bg-slate-950">
-            {messages.map((msg, idx) => (
+            {messages.map((msg: Message, idx: number) => (
               <div
                 key={idx}
                 className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
@@ -162,7 +162,7 @@ const AIChat: React.FC<AIChatProps> = () => {
             {isTyping && (
               <div className="flex justify-start mb-4">
                 <div className="bg-slate-100 dark:bg-slate-800 rounded-2xl px-4 py-3 shadow-sm border border-slate-200 dark:border-slate-700 max-w-[80%] flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" />
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '200ms' }} />
                   <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '400ms' }} />
                 </div>
@@ -186,6 +186,7 @@ const AIChat: React.FC<AIChatProps> = () => {
                 onClick={handleSend}
                 disabled={!input.trim() || isTyping}
                 className="absolute right-2 p-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:hover:bg-indigo-600 transition-colors"
+                title="Send message"
               >
                 <Send size={16} />
               </button>

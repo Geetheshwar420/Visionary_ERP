@@ -104,8 +104,7 @@ const Dashboard: React.FC = () => {
               </div>
               <div className="w-full bg-slate-800/50 h-2 rounded-full overflow-hidden border border-white/5">
                 <div
-                  className="bg-gradient-to-r from-indigo-400 to-purple-400 h-full rounded-full shadow-[0_0_10px_rgba(129,140,248,0.5)] transition-all duration-1000"
-                  style={{ width: `${dashboardStats?.confidence || 0}%` }}
+                  className="bg-gradient-to-r from-indigo-400 to-purple-400 h-full rounded-full shadow-[0_0_10px_rgba(129,140,248,0.5)] transition-all duration-1000 confidence-bar"
                 ></div>
               </div>
             </div>
@@ -245,6 +244,7 @@ const Dashboard: React.FC = () => {
             <button
               onClick={handleGenerateInsights}
               disabled={isGenerating}
+              title={t('generateInsights')} // Added title attribute for discernible text
               className="p-2 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-white dark:hover:bg-slate-800 rounded-full transition-all shadow-sm hover:shadow border border-transparent hover:border-slate-200 dark:hover:border-slate-700 disabled:opacity-50"
             >
               <RefreshCw size={18} className={isGenerating ? 'animate-spin' : ''} />

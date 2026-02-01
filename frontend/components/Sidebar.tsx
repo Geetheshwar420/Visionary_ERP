@@ -78,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
 
-          <button onClick={() => setIsOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors absolute right-4 top-6">
+          <button onClick={() => setIsOpen(false)} className="md:hidden text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors absolute right-4 top-6" title="Close menu">
             <X size={24} />
           </button>
 

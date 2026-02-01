@@ -79,7 +79,7 @@ const App: React.FC = () => {
           {!isAuthenticated ? (
             <div className="animate-in fade-in duration-500">
               <Routes>
-                <Route path="/" element={<Landing />} />
+                <Route path="/" element={<Landing toggleTheme={toggleTheme} isDark={theme === 'dark'} isAuthenticated={isAuthenticated} />} />
                 <Route path="/login" element={<Login onLogin={handleLogin} toggleTheme={toggleTheme} isDark={theme === 'dark'} />} />
                 <Route path="/signup" element={<Signup onSignup={handleLogin} toggleTheme={toggleTheme} isDark={theme === 'dark'} />} />
                 <Route path="/verify-email" element={<VerifyEmail onVerified={handleLogin} />} />
@@ -96,7 +96,7 @@ const App: React.FC = () => {
                 onLogout={handleLogout}
                 user={user}
                 toggleTheme={toggleTheme}
-                theme={theme}
+                isDark={theme === 'dark'}
               />
 
               <main className="flex-1 overflow-y-auto w-full pt-16 md:pt-0 pb-20 md:pb-0 relative">
@@ -111,6 +111,7 @@ const App: React.FC = () => {
                   <button
                     onClick={() => setIsSidebarOpen(true)}
                     className="p-2 text-slate-600 dark:text-slate-400"
+                    aria-label="Open sidebar"
                   >
                     <Menu size={24} />
                   </button>

@@ -159,7 +159,7 @@ const Financials: React.FC = () => {
                     color: '#F8FAFC'
                   }}
                   itemStyle={{ color: '#F8FAFC' }}
-                  formatter={(value: number) => `$${value.toLocaleString()}`}
+                  formatter={(value: number | undefined) => value !== undefined ? `$${value.toLocaleString()}` : '$0'}
                 />
                 <Legend verticalAlign="bottom" height={36} iconType="circle" />
               </PieChart>

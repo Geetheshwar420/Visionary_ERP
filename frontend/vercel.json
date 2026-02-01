@@ -1,7 +1,26 @@
 {
+    "headers": [
+        {
+            "source": "/sw.js",
+            "headers": [
+                {
+                    "key": "Content-Type",
+                    "value": "application/javascript"
+                },
+                {
+                    "key": "Cache-Control",
+                    "value": "public, max-age=0, must-revalidate"
+                }
+            ]
+        }
+    ],
     "rewrites": [
         {
-            "source": "/(.*)",
+            "source": "/api/:path*",
+            "destination": "https://your-api-domain.com/:path*"
+        },
+        {
+            "source": "/((?!sw\\.js|manifest\\.json|_next).*)",
             "destination": "/index.html"
         }
     ]

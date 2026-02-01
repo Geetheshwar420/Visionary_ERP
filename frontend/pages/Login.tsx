@@ -129,8 +129,8 @@ export default function Login({ onLogin, toggleTheme, isDark }: LoginProps) {
       {/* Abstract Background Decoration */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-blue-500/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse" />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-500/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-[40%] left-[40%] w-[20%] h-[20%] rounded-full bg-purple-500/20 blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-pulse" style={{ animationDelay: '4s' }} />
+        <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-500/20 blur-[120px] mix-blend-multiply dark:mix-blend-screen animate-pulse animate-delay-2s" />
+        <div className="absolute top-[40%] left-[40%] w-[20%] h-[20%] rounded-full bg-purple-500/20 blur-[100px] mix-blend-multiply dark:mix-blend-screen animate-pulse animation-delay-4s" />
 
         {/* Grid Pattern Overlay */}
         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 brightness-100 contrast-150 mix-blend-overlay"></div>

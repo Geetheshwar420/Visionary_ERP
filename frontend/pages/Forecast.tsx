@@ -81,7 +81,7 @@ const Forecast: React.FC = () => {
                 <XAxis
                   dataKey="date"
                   tick={{ fontSize: 12, fill: '#94A3B8' }}
-                  tickFormatter={(val) => val.split('-').slice(1).join('/')}
+                  tickFormatter={(val: string) => val.split('-').slice(1).join('/')}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -89,12 +89,12 @@ const Forecast: React.FC = () => {
                   tick={{ fontSize: 12, fill: '#94A3B8' }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(val) => `$${val}`}
+                  tickFormatter={(val: number) => `$${val}`}
                 />
                 <Tooltip
                   contentStyle={{ backgroundColor: '#1E293B', borderRadius: '8px', border: '1px solid #334155', color: '#F8FAFC' }}
                   itemStyle={{ color: '#F8FAFC' }}
-                  formatter={(value: number) => [`$${value.toFixed(0)}`, 'Profit']}
+                  formatter={(value: number | undefined) => value !== undefined ? [`$${value.toFixed(0)}`, 'Profit'] : []}
                   labelStyle={{ color: '#94A3B8', marginBottom: '0.5rem' }}
                 />
                 <ReferenceLine x={forecastData[todayIndex]?.date} stroke="#94A3B8" strokeDasharray="3 3" label={{ value: 'Today', fill: '#94A3B8', fontSize: 12, position: 'insideTopLeft' }} />
@@ -133,7 +133,7 @@ const Forecast: React.FC = () => {
                 <span className="text-emerald-400 font-medium">${forecastStats.bestCase.toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-emerald-500 h-full rounded-full" style={{ width: `${forecastStats.confidence}%` }}></div>
+                <div className={`bg-emerald-500 h-full rounded-full confidence-bar-${forecastStats.confidence}`}></div>
               </div>
 
               <div className="flex justify-between text-sm mt-2">
@@ -141,7 +141,7 @@ const Forecast: React.FC = () => {
                 <span className="text-amber-400 font-medium">${forecastStats.worstCase.toLocaleString()}</span>
               </div>
               <div className="w-full bg-slate-700 h-1.5 rounded-full overflow-hidden">
-                <div className="bg-amber-500 h-full rounded-full" style={{ width: `${100 - forecastStats.confidence}%` }}></div>
+                <div className="bg-amber-500 h-full rounded-full confidence-bar" style={{ width: `${100 - forecastStats.confidence}%` }} />
               </div>
             </div>
           </div>

@@ -115,8 +115,9 @@ const Inventory: React.FC = () => {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
           <input
-            type="text"
+            title={t('searchByNameSku')}
             placeholder={t('searchPlaceholder')}
+            type="text"
             className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-slate-700 text-slate-900 dark:text-white placeholder-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -128,6 +129,7 @@ const Inventory: React.FC = () => {
             value={filterCategory}
             onChange={(e) => setFilterCategory(e.target.value)}
             className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Filter by category" // Added title attribute for accessibility
           >
             {categories.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -136,6 +138,7 @@ const Inventory: React.FC = () => {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as any)}
             className="px-4 py-2 border border-slate-200 dark:border-slate-600 rounded-lg text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            title="Sort by" // Added title attribute for accessibility
           >
             <option value="name">Name (A-Z)</option>
             <option value="stock">Stock Level</option>
@@ -261,7 +264,7 @@ const Inventory: React.FC = () => {
               <h3 className="text-xl font-heading font-bold text-slate-900 dark:text-white">
                 {editingProduct ? t('editProduct') : t('addProduct')}
               </h3>
-              <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
+              <button onClick={() => setIsModalOpen(false)} title="Close" className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors">
                 <X size={24} />
               </button>
             </div>
@@ -312,6 +315,7 @@ const Inventory: React.FC = () => {
                       required
                       type="number"
                       min="0"
+                      title={t('quantity')}
                       value={formData.quantity || 0}
                       onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
@@ -323,6 +327,7 @@ const Inventory: React.FC = () => {
                     <input
                       required
                       type="date"
+                      title={t('expiry')}
                       value={formData.expiryDate || ''}
                       onChange={e => setFormData({ ...formData, expiryDate: e.target.value })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
@@ -336,6 +341,7 @@ const Inventory: React.FC = () => {
                       type="number"
                       step="0.01"
                       min="0"
+                      title={t('costPrice')}
                       value={formData.costPrice || 0}
                       onChange={e => setFormData({ ...formData, costPrice: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
@@ -349,6 +355,7 @@ const Inventory: React.FC = () => {
                       type="number"
                       step="0.01"
                       min="0"
+                      title={t('sellingPrice')}
                       value={formData.sellingPrice || 0}
                       onChange={e => setFormData({ ...formData, sellingPrice: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
@@ -359,9 +366,12 @@ const Inventory: React.FC = () => {
                     <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('lastSold')}</label>
                     <input
                       type="date"
+                      title={t('lastSold')} // Added title attribute for accessibility
+                      placeholder={t('lastSoldPlaceholder')} // Added placeholder attribute for accessibility
                       value={formData.lastSold || ''}
                       onChange={e => setFormData({ ...formData, lastSold: e.target.value })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
+                      aria-label={t('lastSold')} // Added aria-label for accessibility
                     />
                   </div>
 
@@ -371,6 +381,8 @@ const Inventory: React.FC = () => {
                       type="number"
                       step="0.1"
                       min="0"
+                      title={t('velocity')}
+                      placeholder="e.g., 5.5"
                       value={formData.velocity || 0}
                       onChange={e => setFormData({ ...formData, velocity: parseFloat(e.target.value) })}
                       className="w-full px-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:text-white transition-all"
